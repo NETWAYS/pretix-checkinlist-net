@@ -1,0 +1,3 @@
+recursive-include pretix_checkinlist_net/static *
+recursive-include pretix_checkinlist_net/templates *
+recursive-include pretix_checkinlist_net/locale *

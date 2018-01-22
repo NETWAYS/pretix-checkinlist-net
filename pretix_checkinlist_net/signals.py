@@ -1,0 +1,26 @@
+# Pretix Checkin List Renderer for NETWAYS
+#
+# Copyright 2018 NETWAYS GmbH <support@netways.de>
+# Copyright 2018 Raphael Michel <mail@raphaelmichel.de>
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from django.dispatch import receiver
+
+from pretix.base.signals import register_data_exporters
+
+@receiver(register_data_exporters, dispatch_uid="exporter_checkinlist_csv_netways")
+def register_csv_net(sender, **kwargs):
+    from .exporters import CSVCheckinListNet
+    return CSVCheckinListNet
+
