@@ -28,11 +28,6 @@ class BaseCheckinList(BaseExporter):
                      ),
                      initial=self.event.checkin_lists.first()
                  )),
-                ('secrets',
-                 forms.BooleanField(
-                     label=_('Include QR-code secret'),
-                     required=False
-                 )),
                 ('paid_only',
                  forms.BooleanField(
                      label=_('Only paid orders'),
@@ -50,15 +45,6 @@ class BaseCheckinList(BaseExporter):
                      widget=forms.RadioSelect,
                      required=False
                  )),
-                ('questions',
-                 forms.ModelMultipleChoiceField(
-                     queryset=self.event.questions.all(),
-                     label=_('Include questions'),
-                     widget=forms.CheckboxSelectMultiple(
-                         attrs={'class': 'scrolling-multiple-choice'}
-                     ),
-                     required=False
-                 )),
             ]
         )
         return d
@@ -74,7 +60,6 @@ class CSVCheckinListNet(BaseCheckinList):
         writer = csv.writer(output, quoting=csv.QUOTE_NONNUMERIC, delimiter=",")
         cl = self.event.checkin_lists.get(pk=form_data['list'])
 
-        questions = list(Question.objects.filter(event=self.event, id__in=form_data['questions']))
         qs = OrderPosition.objects.filter(
             order__event=self.event,
         ).prefetch_related(
@@ -93,27 +78,12 @@ class CSVCheckinListNet(BaseCheckinList):
             qs = qs.order_by('order__code')
 
         headers = [
-            _('Order code'), _('Attendee name'), _('Product'), _('Price')
+            _('Order code'), _('Attendee name'), _('E-Mail')
         ]
         if form_data['paid_only']:
             qs = qs.filter(order__status=Order.STATUS_PAID)
         else:
             qs = qs.filter(order__status__in=(Order.STATUS_PAID, Order.STATUS_PENDING))
-            headers.append(_('Paid'))
-
-        if form_data['secrets']:
-            headers.append(_('Secret'))
-
-        if self.event.settings.attendee_emails_asked:
-            headers.append(_('E-mail'))
-
-        if self.event.has_subevents:
-            headers.append(pgettext('subevent', 'Date'))
-
-        for q in questions:
-            headers.append(str(q.question))
-
-        writer.writerow(headers)
 
         collected_op = {}
 
@@ -125,27 +95,43 @@ class CSVCheckinListNet(BaseCheckinList):
             else:
                 collected_op[order_code] = [ op ]
 
+        # we need to know about the column count we will render later on.
+        products = []
+        datalist = []
+
         for order_code, ops in collected_op.items():
-            row = [ order_code ]
+            data = {}
+            data['products'] = {}
+            data['order_code'] = order_code
 
             for op in ops:
-                row.append(op.attendee_name or (op.addon_to.attendee_name if op.addon_to else ''))
-                row.append(str(op.item.name) + (" – " + str(op.variation.value) if op.variation else ""))
-                row.append(op.price)
+                data['attendee_name'] = op.attendee_name or (op.addon_to.attendee_name if op.addon_to else '')
+                data['email'] = op.attendee_email or (op.addon_to.attendee_email if op.addon_to else '')
 
-                if not form_data['paid_only']:
-                    row.append(_('Yes') if op.order.status == Order.STATUS_PAID else _('No'))
-                if form_data['secrets']:
-                    row.append(op.secret)
-                if self.event.settings.attendee_emails_asked:
-                    row.append(op.attendee_email or (op.addon_to.attendee_email if op.addon_to else ''))
-                if self.event.has_subevents:
-                    row.append(str(op.subevent))
-                acache = {}
-                for a in op.answers.all():
-                    acache[a.question_id] = str(a)
-                for q in questions:
-                    row.append(acache.get(q.pk, ''))
+                item_name = str(op.item.name) + (" – " + str(op.variation.value) if op.variation else "")
+
+                # update global header
+                if item_name not in products:
+                    products.append(item_name)
+
+                data['products'][item_name] = (1 if op.order.status == Order.STATUS_PAID else 0);
+
+            datalist.append(data)
+
+        for product in products:
+            headers.append(product)
+
+        writer.writerow(headers)
+
+        for data in datalist:
+            row = []
+            row.append(data['order_code'])
+            row.append(data['attendee_name'])
+            row.append(data['email'])
+
+            products = data['products']
+            for item, val in products.items():
+                row.append(val)
 
             writer.writerow(row)
 
