@@ -110,13 +110,19 @@ class CSVCheckinListNet(BaseCheckinList):
 
                 item_name = str(op.item.name) + (" – " + str(op.variation.value) if op.variation else "")
 
-                # update global header
+                # update global header columns
                 if item_name not in products:
                     products.append(item_name)
 
                 data['products'][item_name] = (1 if op.order.status == Order.STATUS_PAID else 0);
 
             datalist.append(data)
+
+        products.remove('Ticket')
+
+        products.sort()
+
+        products[:0] = [ 'Ticket' ]
 
         for product in products:
             headers.append(product)
