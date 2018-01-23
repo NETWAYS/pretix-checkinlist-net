@@ -115,26 +115,37 @@ class CSVCheckinListNet(BaseCheckinList):
 
         writer.writerow(headers)
 
+        collected_op = {}
+
         for op in qs:
-            row = [
-                op.order.code,
-                op.attendee_name or (op.addon_to.attendee_name if op.addon_to else ''),
-                str(op.item.name) + (" – " + str(op.variation.value) if op.variation else ""),
-                op.price,
-            ]
-            if not form_data['paid_only']:
-                row.append(_('Yes') if op.order.status == Order.STATUS_PAID else _('No'))
-            if form_data['secrets']:
-                row.append(op.secret)
-            if self.event.settings.attendee_emails_asked:
-                row.append(op.attendee_email or (op.addon_to.attendee_email if op.addon_to else ''))
-            if self.event.has_subevents:
-                row.append(str(op.subevent))
-            acache = {}
-            for a in op.answers.all():
-                acache[a.question_id] = str(a)
-            for q in questions:
-                row.append(acache.get(q.pk, ''))
+            order_code = op.order.code
+
+            if order_code in collected_op:
+                collected_op[order_code].append(op)
+            else:
+                collected_op[order_code] = [ op ]
+
+        for order_code, ops in collected_op.items():
+            row = [ order_code ]
+
+            for op in ops:
+                row.append(op.attendee_name or (op.addon_to.attendee_name if op.addon_to else ''))
+                row.append(str(op.item.name) + (" – " + str(op.variation.value) if op.variation else ""))
+                row.append(op.price)
+
+                if not form_data['paid_only']:
+                    row.append(_('Yes') if op.order.status == Order.STATUS_PAID else _('No'))
+                if form_data['secrets']:
+                    row.append(op.secret)
+                if self.event.settings.attendee_emails_asked:
+                    row.append(op.attendee_email or (op.addon_to.attendee_email if op.addon_to else ''))
+                if self.event.has_subevents:
+                    row.append(str(op.subevent))
+                acache = {}
+                for a in op.answers.all():
+                    acache[a.question_id] = str(a)
+                for q in questions:
+                    row.append(acache.get(q.pk, ''))
 
             writer.writerow(row)
 
