@@ -1,4 +1,5 @@
 import io
+import logging
 from collections import OrderedDict
 
 from defusedcsv import csv
@@ -13,6 +14,8 @@ from reportlab.platypus import Flowable, Paragraph, Spacer, Table, TableStyle
 from pretix.base.exporter import BaseExporter
 from pretix.base.models import Checkin, Order, OrderPosition, Question
 from pretix.plugins.reports.exporters import ReportlabExportMixin
+
+logger = logging.getLogger(__name__)
 
 class BaseCheckinList(BaseExporter):
     @property
@@ -62,7 +65,6 @@ class BaseCheckinList(BaseExporter):
             ]
         )
         return d
-
 
 class CSVCheckinListNet(BaseCheckinList):
     name = "overview"
@@ -138,6 +140,87 @@ class CSVCheckinListNet(BaseCheckinList):
 
             writer.writerow(row)
 
+        # NET specific
+        # Hook into the output csv cache and change the layout
+        # Ugly and not performant, but better portability on future changes
+        output = self.render_combined(output.getvalue())
+
         return 'checkin_net.csv', 'text/csv', output.getvalue().encode("utf-8")
 
+    def quote (self, string):
+        return '"' + string + '"'
 
+    def render_combined(self, csv_input):
+        new_csv_output = io.StringIO();
+        writer = csv.writer(new_csv_output, quoting=csv.QUOTE_NONNUMERIC, delimiter=",")
+
+        #logger.exception(csv_input)
+
+        # read input, use DictReader for proper access
+        f = io.StringIO(csv_input)
+        reader = csv.DictReader(f, quoting=csv.QUOTE_NONNUMERIC, delimiter=",")
+
+        coll = {}
+        columns = [ 'Order name', 'Attendee name' ]
+        collected_columns = []
+
+        for row in reader:
+            #logger.exception(row)
+
+            order_code = row['Order code']
+            attendee = row['Attendee name']
+            product = row['Product']
+            paid = row['Paid']
+
+            # Product will be our new column header name
+            if product not in collected_columns:
+                collected_columns.append(product)
+
+            # Check whether we need to modify an existing attendee
+            new_row = {}
+            if attendee in coll:
+                new_row = coll[attendee]
+
+            new_row['order_code'] = order_code
+
+            # initialize if there are not products yet
+            if 'products' not in new_row:
+                new_row['products'] = {}
+
+            #new_row['products'][product] = "Paid: " + paid # don't store true/false, if this field is set with the paid status, it will be printed
+            new_row['products'][product] = "yes" # hide payment details from externals
+
+            coll[attendee] = new_row
+        # for row in reader:
+
+        #headers = ';'.join(quote(x) for x in columns + collected_columns)
+        headers = columns + collected_columns
+
+        #print(header)
+        writer.writerow(headers)
+
+        #print("Collected Columns: ")
+        #print(collected_columns)
+
+        for attendee, row in coll.items():
+            line = []
+            line.append(row['order_code'])
+            line.append(attendee)
+
+            #print(row)
+
+            for c in collected_columns:
+                if c in row['products']:
+                    line.append(row['products'][c])
+                else:
+                    line.append('') # empty value
+
+            #new_row = ','.join(quote(x) for x in line)
+            new_row = line
+
+            #print(new_row)
+            writer.writerow(new_row)
+        # for attendee, row in coll.items():
+
+        # return the same stringIO value
+        return new_csv_output
