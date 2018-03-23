@@ -12,11 +12,11 @@ except:
 
 setup(
     name = 'pretix-checkinlist-net',
-    version = '0.0.1',
+    version = '0.0.2',
     description = 'Pretix checkin list exporter for NETWAYS',
     long_description = long_description,
     url = 'https://github.com/NETWAYS/pretix-checkinlist-net',
-    download_url = 'https://github.com/NETWAYS/pretix-invoice-net/archive/v0.0.3.tar.gz',
+    download_url = 'https://github.com/NETWAYS/pretix-invoice-net/archive/v0.0.2.tar.gz',
     keywords = [ 'pretix', 'tickets', 'events', 'invoice', 'pdf' ],
     author = 'NETWAYS GmbH',
     author_email = 'support@netways.de',
