@@ -170,7 +170,12 @@ class CSVCheckinListNet(BaseCheckinList):
             order_code = row['Order code']
             attendee = row['Attendee name']
             product = row['Product']
-            paid = row['Paid']
+
+            # this is optional above, not always set
+            try:
+                paid = row['Paid']
+            except KeyError:
+                paid = ''
 
             # Product will be our new column header name
             if product not in collected_columns:
