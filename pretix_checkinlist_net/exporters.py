@@ -31,28 +31,6 @@ class BaseCheckinList(BaseExporter):
                      ),
                      initial=self.event.checkin_lists.first()
                  )),
-                ('secrets',
-                 forms.BooleanField(
-                     label=_('Include QR-code secret'),
-                     required=False
-                 )),
-                ('paid_only',
-                 forms.BooleanField(
-                     label=_('Only paid orders'),
-                     initial=True,
-                     required=False
-                 )),
-                ('sort',
-                 forms.ChoiceField(
-                     label=_('Sort by'),
-                     initial='name',
-                     choices=(
-                         ('name', _('Attendee name')),
-                         ('code', _('Order code')),
-                     ),
-                     widget=forms.RadioSelect,
-                     required=False
-                 )),
                 ('questions',
                  forms.ModelMultipleChoiceField(
                      queryset=self.event.questions.all(),
@@ -89,22 +67,16 @@ class CSVCheckinListNet(BaseCheckinList):
         if cl.subevent:
             qs = qs.filter(subevent=cl.subevent)
 
-        if form_data['sort'] == 'name':
-            qs = qs.order_by(Coalesce('attendee_name', 'addon_to__attendee_name'))
-        elif form_data['sort'] == 'code':
-            qs = qs.order_by('order__code')
+        # NET: Always sort by name
+        qs = qs.order_by(Coalesce('attendee_name', 'addon_to__attendee_name'))
 
         headers = [
             _('Order code'), _('Attendee name'), _('Product'), _('Price')
         ]
-        if form_data['paid_only']:
-            qs = qs.filter(order__status=Order.STATUS_PAID)
-        else:
-            qs = qs.filter(order__status__in=(Order.STATUS_PAID, Order.STATUS_PENDING))
-            headers.append(_('Paid'))
 
-        if form_data['secrets']:
-            headers.append(_('Secret'))
+        # NET: Always include paid/non-paid
+        qs = qs.filter(order__status__in=(Order.STATUS_PAID, Order.STATUS_PENDING))
+        headers.append(_('Paid'))
 
         if self.event.settings.attendee_emails_asked:
             headers.append(_('E-mail'))
@@ -124,10 +96,10 @@ class CSVCheckinListNet(BaseCheckinList):
                 str(op.item.name) + (" – " + str(op.variation.value) if op.variation else ""),
                 op.price,
             ]
-            if not form_data['paid_only']:
-                row.append(_('Yes') if op.order.status == Order.STATUS_PAID else _('No'))
-            if form_data['secrets']:
-                row.append(op.secret)
+
+            # NET: Always include paid/non-paid
+            row.append(_('Yes') if op.order.status == Order.STATUS_PAID else _('No'))
+
             if self.event.settings.attendee_emails_asked:
                 row.append(op.attendee_email or (op.addon_to.attendee_email if op.addon_to else ''))
             if self.event.has_subevents:
