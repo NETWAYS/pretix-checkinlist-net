@@ -90,7 +90,7 @@ class CSVCheckinListNet(BaseCheckinList):
 
         # Collect and store data in preferred output format
         coll = {}
-        collected_columns = []
+        collected_product_columns = []
 
         for op in qs:
             order_code = op.order.code
@@ -100,8 +100,8 @@ class CSVCheckinListNet(BaseCheckinList):
             email = op.attendee_email or (op.addon_to.attendee_email if op.addon_to else '')
 
             # Product will be added as new column
-            if product not in collected_columns:
-                collected_columns.append(product)
+            if product not in collected_product_columns:
+                collected_product_columns.append(product)
 
             # Check whether we need to modify an existing attendee
             new_row = {}
@@ -132,7 +132,7 @@ class CSVCheckinListNet(BaseCheckinList):
         writer = csv.writer(output, quoting=csv.QUOTE_NONNUMERIC, delimiter=",")
 
         # Header
-        headers = columns + collected_columns
+        headers = columns + collected_product_columns
         writer.writerow(headers)
 
         # Body
@@ -141,7 +141,7 @@ class CSVCheckinListNet(BaseCheckinList):
             line.append(row['order_code'])
             line.append(attendee)
 
-            for c in collected_columns:
+            for c in collected_product_columns:
                 if c in row['products']:
                     line.append(row['products'][c])
                 else:
