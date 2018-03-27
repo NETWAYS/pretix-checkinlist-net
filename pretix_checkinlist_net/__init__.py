@@ -11,7 +11,7 @@ class PluginApp(AppConfig):
         author = 'NETWAYS GmbH'
         description = ugettext_lazy('Short description')
         visible = True
-        version = '0.0.5'
+        version = '1.0.0'
 
     def ready(self):
         from . import signals  # NOQA
