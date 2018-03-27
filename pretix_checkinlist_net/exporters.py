@@ -50,22 +50,20 @@ class CSVCheckinListNet(BaseCheckinList):
     verbose_name = ugettext_lazy('Check-in list (CSV) for NETWAYS')
 
     def render(self, form_data: dict):
-        output = io.StringIO()
-        writer = csv.writer(output, quoting=csv.QUOTE_NONNUMERIC, delimiter=",")
-        cl = self.event.checkin_lists.get(pk=form_data['list'])
+        # Fetch data from checkin_list
+        checkin_list = self.event.checkin_lists.get(pk=form_data['list'])
 
-        questions = list(Question.objects.filter(event=self.event, id__in=form_data['questions']))
         qs = OrderPosition.objects.filter(
             order__event=self.event,
         ).prefetch_related(
             'answers', 'answers__question'
         ).select_related('order', 'item', 'variation', 'addon_to')
 
-        if not cl.all_products:
-            qs = qs.filter(item__in=cl.limit_products.values_list('id', flat=True))
+        if not checkin_list.all_products:
+            qs = qs.filter(item__in=checkin_list.limit_products.values_list('id', flat=True))
 
-        if cl.subevent:
-            qs = qs.filter(subevent=cl.subevent)
+        if checkin_list.subevent:
+            qs = qs.filter(subevent=checkin_list.subevent)
 
         # NET: Always sort by name
         qs = qs.order_by(Coalesce('attendee_name', 'addon_to__attendee_name'))
@@ -84,72 +82,24 @@ class CSVCheckinListNet(BaseCheckinList):
         if self.event.has_subevents:
             headers.append(pgettext('subevent', 'Date'))
 
-        for q in questions:
-            headers.append(str(q.question))
+        # Questions - TODO
+        questions = list(Question.objects.filter(event=self.event, id__in=form_data['questions']))
 
-        writer.writerow(headers)
+        for question in questions:
+            headers.append(str(question.question))
 
-        for op in qs:
-            row = [
-                op.order.code,
-                op.attendee_name or (op.addon_to.attendee_name if op.addon_to else ''),
-                str(op.item.name) + (" – " + str(op.variation.value) if op.variation else ""),
-                op.price,
-            ]
-
-            # NET: Always include paid/non-paid
-            row.append(_('Yes') if op.order.status == Order.STATUS_PAID else _('No'))
-
-            if self.event.settings.attendee_emails_asked:
-                row.append(op.attendee_email or (op.addon_to.attendee_email if op.addon_to else ''))
-            if self.event.has_subevents:
-                row.append(str(op.subevent))
-            acache = {}
-            for a in op.answers.all():
-                acache[a.question_id] = str(a)
-            for q in questions:
-                row.append(acache.get(q.pk, ''))
-
-            writer.writerow(row)
-
-        # NET specific
-        # Hook into the output csv cache and change the layout
-        # Ugly and not performant, but better portability on future changes
-        output = self.render_combined(output.getvalue())
-
-        return 'checkin_net.csv', 'text/csv', output.getvalue().encode("utf-8")
-
-    def quote (self, string):
-        return '"' + string + '"'
-
-    def render_combined(self, csv_input):
-        new_csv_output = io.StringIO();
-        writer = csv.writer(new_csv_output, quoting=csv.QUOTE_NONNUMERIC, delimiter=",")
-
-        #logger.exception(csv_input)
-
-        # read input, use DictReader for proper access
-        f = io.StringIO(csv_input)
-        reader = csv.DictReader(f, quoting=csv.QUOTE_NONNUMERIC, delimiter=",")
-
+        # Collect and store data in preferred output format
         coll = {}
-        columns = [ 'Order name', 'Attendee name' ]
         collected_columns = []
 
-        for row in reader:
-            #logger.exception(row)
+        for op in qs:
+            order_code = op.order.code
+            attendee = op.attendee_name or (op.addon_to.attendee_name if op.addon_to else '')
+            product = str(op.item.name) + (" – " + str(op.variation.value) if op.variation else "")
+            paid = _('Yes') if op.order.status == Order.STATUS_PAID else _('No')
+            email = op.attendee_email or (op.addon_to.attendee_email if op.addon_to else '')
 
-            order_code = row['Order code']
-            attendee = row['Attendee name']
-            product = row['Product']
-
-            # this is optional above, not always set
-            try:
-                paid = row['Paid']
-            except KeyError:
-                paid = ''
-
-            # Product will be our new column header name
+            # Product will be added as new column
             if product not in collected_columns:
                 collected_columns.append(product)
 
@@ -160,31 +110,36 @@ class CSVCheckinListNet(BaseCheckinList):
 
             new_row['order_code'] = order_code
 
-            # initialize if there are not products yet
+            # Initialize if there are no products yet
             if 'products' not in new_row:
                 new_row['products'] = {}
 
-            #new_row['products'][product] = "Paid: " + paid # don't store true/false, if this field is set with the paid status, it will be printed
-            new_row['products'][product] = "yes" # hide payment details from externals
+            # Store the product
+            #new_row['products'][product] = paid
+            new_row['products'][product] = "yes"
 
+            # Pass back to collection
             coll[attendee] = new_row
-        # for row in reader:
 
-        #headers = ';'.join(quote(x) for x in columns + collected_columns)
+        # for loop end
+
+        columns = [ 'Order name', 'Attendee name' ]
+
+        # Append questions to columns - TODO
+
+        # IO
+        output = io.StringIO()
+        writer = csv.writer(output, quoting=csv.QUOTE_NONNUMERIC, delimiter=",")
+
+        # Header
         headers = columns + collected_columns
-
-        #print(header)
         writer.writerow(headers)
 
-        #print("Collected Columns: ")
-        #print(collected_columns)
-
+        # Body
         for attendee, row in coll.items():
             line = []
             line.append(row['order_code'])
             line.append(attendee)
-
-            #print(row)
 
             for c in collected_columns:
                 if c in row['products']:
@@ -192,12 +147,13 @@ class CSVCheckinListNet(BaseCheckinList):
                 else:
                     line.append('') # empty value
 
-            #new_row = ','.join(quote(x) for x in line)
+            # Store the line
             new_row = line
 
-            #print(new_row)
+            # Write the row
             writer.writerow(new_row)
+
         # for attendee, row in coll.items():
 
-        # return the same stringIO value
-        return new_csv_output
+        # Dump file
+        return 'checkin_net.csv', 'text/csv', output.getvalue().encode("utf-8")
