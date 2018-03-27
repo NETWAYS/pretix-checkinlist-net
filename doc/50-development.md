@@ -57,6 +57,7 @@ VERSION=0.0.3
 
 ```
 sed -i "s/version = '.*'/version = '$VERSION'/g" setup.py
+sed -i "s/version = '.*'/version = '$VERSION'/g" pretix_checkinlist_net/__init__.py
 sed -i "s/archive\/.*'/archive\/v$VERSION.tar.gz'/g" setup.py
 
 git commit -av -m "Release v$VERSION"
