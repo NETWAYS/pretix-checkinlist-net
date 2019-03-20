@@ -1,25 +1,38 @@
-import io
+# Debug logging
 import logging
+
+# Pretix requirements
 from collections import OrderedDict
 
-from defusedcsv import csv
+import dateutil.parser
 from django import forms
+from django.conf import settings
 from django.db.models import Max, OuterRef, Subquery
 from django.db.models.functions import Coalesce
-from django.utils.formats import localize
+from django.urls import reverse
+from django.utils.formats import date_format
+from django.utils.timezone import is_aware, make_aware
 from django.utils.translation import pgettext, ugettext as _, ugettext_lazy
+from jsonfallback.functions import JSONExtract
+from pytz import UTC
 from reportlab.lib.units import mm
 from reportlab.platypus import Flowable, Paragraph, Spacer, Table, TableStyle
 
-from pretix.base.exporter import BaseExporter
-from pretix.base.models import Checkin, Order, OrderPosition, Question
+from pretix.base.exporter import BaseExporter, ListExporter
+from pretix.base.models import (
+    Checkin, InvoiceAddress, Order, OrderPosition, Question,
+)
+from pretix.base.settings import PERSON_NAME_SCHEMES
+from pretix.base.templatetags.money import money_filter
+from pretix.control.forms.widgets import Select2
 from pretix.plugins.reports.exporters import ReportlabExportMixin
 
 logger = logging.getLogger(__name__)
 
-class BaseCheckinList(BaseExporter):
+class CheckInListMixin(BaseExporter):
     @property
-    def export_form_fields(self):
+    def _fields(self):
+        name_scheme = PERSON_NAME_SCHEMES[self.event.settings.name_scheme]
         d = OrderedDict(
             [
                 ('list',
@@ -42,44 +55,65 @@ class BaseCheckinList(BaseExporter):
                  )),
             ]
         )
+
+        d['list'].queryset = self.event.checkin_lists.all()
+        d['list'].widget = Select2(
+            attrs={
+                'data-model-select2': 'generic',
+                'data-select2-url': reverse('control:event.orders.checkinlists.select2', kwargs={
+                    'event': self.event.slug,
+                    'organizer': self.event.organizer.slug,
+                }),
+                'data-placeholder': _('Check-in list')
+            }
+        )
+        d['list'].widget.choices = d['list'].choices
+        d['list'].required = True
+
         return d
 
-class CSVCheckinListNet(BaseCheckinList):
-    name = "overview"
-    identifier = 'checkinlistcsvnet'
-    verbose_name = ugettext_lazy('Check-in list (CSV) for NETWAYS')
-
-    def render(self, form_data: dict):
-        # Fetch data from checkin_list
-        checkin_list = self.event.checkin_lists.get(pk=form_data['list'])
+    def _get_queryset(self, cl, form_data):
+        cqs = Checkin.objects.filter(
+            position_id=OuterRef('pk'),
+            list_id=cl.pk
+        ).order_by().values('position_id').annotate(
+            m=Max('datetime')
+        ).values('m')
 
         qs = OrderPosition.objects.filter(
             order__event=self.event,
+        ).annotate(
+            last_checked_in=Subquery(cqs)
         ).prefetch_related(
-            'answers', 'answers__question'
-        ).select_related('order', 'item', 'variation', 'addon_to')
+            'answers', 'answers__question', 'addon_to__answers', 'addon_to__answers__question'
+        ).select_related('order', 'item', 'variation', 'addon_to', 'order__invoice_address', 'voucher')
 
-        if not checkin_list.all_products:
-            qs = qs.filter(item__in=checkin_list.limit_products.values_list('id', flat=True))
+        if not cl.all_products:
+            qs = qs.filter(item__in=cl.limit_products.values_list('id', flat=True))
 
-        if checkin_list.subevent:
-            qs = qs.filter(subevent=checkin_list.subevent)
+        if cl.subevent:
+            qs = qs.filter(subevent=cl.subevent)
 
-        # NET: Always sort by name
-        qs = qs.order_by(Coalesce('attendee_name', 'addon_to__attendee_name'))
+        # NET: Always sort by name; attribute change to `_cached` with 2.1.0: https://github.com/pretix/pretix/issues/978
+        qs = qs.order_by(Coalesce('attendee_name_cached', 'addon_to__attendee_name_cached'))
 
         # NET: Always include paid/non-paid
         qs = qs.filter(order__status__in=(Order.STATUS_PAID, Order.STATUS_PENDING))
 
-        # Questions
-        questions = list(Question.objects.filter(event=self.event, id__in=form_data['questions']))
+        return qs
 
+    def _get_dataset(self, qs, questions):
         # Collect and store data in preferred output format
         coll = {}
         collected_product_columns = []
         collected_question_columns = []
 
         for op in qs:
+            try:
+                ia = op.order.invoice_address
+            except InvoiceAddress.DoesNotExist:
+                ia = InvoiceAddress()
+
             order_code = op.order.code
             attendee = op.attendee_name or (op.addon_to.attendee_name if op.addon_to else '')
             product = str(op.item.name) + (" – " + str(op.variation.value) if op.variation else "")
@@ -96,6 +130,16 @@ class CSVCheckinListNet(BaseCheckinList):
                 new_row = coll[attendee]
 
             new_row['order_code'] = order_code
+
+			# Attendee name parts
+            name_scheme = PERSON_NAME_SCHEMES[self.event.settings.name_scheme]
+
+            if len(name_scheme['fields']) > 1:
+                attendee_name_parts = []
+                for k, label, w in name_scheme['fields']:
+                    attendee_name_parts.append((op.attendee_name_parts or (op.addon_to.attendee_name_parts if op.addon_to else {}) or ia.name_parts).get(k, ''))
+
+                new_row['attendee_name_parts'] = attendee_name_parts
 
             # Collect products
             if 'products' not in new_row:
@@ -133,49 +177,80 @@ class CSVCheckinListNet(BaseCheckinList):
 
             #logger.error(coll)
 
-        # for loop end
+            # for loop end
 
+        # return result set
+        return coll, collected_product_columns, collected_question_columns
+
+class CSVCheckinListNet(CheckInListMixin, ListExporter):
+    name = "overview"
+    identifier = 'checkinlistcsvnet'
+    verbose_name = ugettext_lazy('Check-in list (CSV) for NETWAYS')
+
+    @property
+    def additional_form_fields(self):
+        return self._fields
+
+    def iterate_list(self, form_data):
+        # Fetch data from checkin_list
+        cl = self.event.checkin_lists.get(pk=form_data['list'])
+
+        # Questions
+        questions = list(Question.objects.filter(event=self.event, id__in=form_data['questions']))
+
+        # Extract data from parent class helper
+        qs = self._get_queryset(cl, form_data)
+
+        # Collect the dataset in our custom format
+        coll, collected_product_columns, collected_question_columns = self._get_dataset(qs, questions)
+
+        # Start building the output
         columns = [ 'Order name', 'Attendee name' ]
 
-        # IO
-        output = io.StringIO()
-        writer = csv.writer(output, quoting=csv.QUOTE_NONNUMERIC, delimiter=",")
+        # Add support for Attendee name parts
+        name_scheme = PERSON_NAME_SCHEMES[self.event.settings.name_scheme]
+
+        if len(name_scheme['fields']) > 1:
+            for k, label, w in name_scheme['fields']:
+                columns.append(_('Attendee name: {part}').format(part=label))
 
         # Header - order is important
         headers = columns + collected_product_columns + collected_question_columns
-        writer.writerow(headers)
+        yield headers
 
         # Body
-        for attendee, row in coll.items():
-            line = []
-            line.append(row['order_code'])
-            line.append(attendee)
+        for attendee, data in coll.items():
+            row = []
+            row.append(data['order_code'])
+            row.append(attendee)
+
+			# Attendee name parts
+            if len(name_scheme['fields']) > 1:
+                for n in data['attendee_name_parts']:
+                    row.append(n)
 
             # Products as columns
             for c in collected_product_columns:
-                if c in row['products']:
-                    line.append(row['products'][c])
+                if c in data['products']:
+                    row.append(data['products'][c])
                 else:
-                    line.append('') # empty value
+                    row.append('') # empty value
 
             #logger.error(row['questions'])
 
             # Questions as columns
             for q in collected_question_columns:
-                if q in row['questions']:
-                    line.append(row['questions'][q])
+                if q in data['questions']:
+                    row.append(data['questions'][q])
                 else:
-                    line.append('') # empty value
+                    row.append('') # empty value
 
-            # Store the line
-            new_row = line
+            #logger.error(row)
 
-            #logger.error(new_row)
-
-            # Write the row
-            writer.writerow(new_row)
+            # Write the row via ListExporter class
+            yield row
 
         # for attendee, row in coll.items():
 
-        # Dump file
-        return 'checkin_net.csv', 'text/csv', output.getvalue().encode("utf-8")
+    def get_filename(self):
+        return '{}_checkin_net'.format(self.event.slug)
