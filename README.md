@@ -3,6 +3,10 @@
 This plugin adds a custom checkin list export for NETWAYS hosted events and conferences
 using <a href="https://pretix.eu/about/en/"><img src="https://github.com/NETWAYS/pretix-invoice-net/blob/master/res/logo.png" height="25"></a>.
 
+## Requirements
+
+* Pretix >= 2.4.0
+
 ## Installation
 
 https://pypi.python.org/pypi/pretix-checkinlist-net
@@ -26,7 +30,7 @@ Navigate into the admin control panel and choose your event.
 
 `Settings > Plugins` and enable the plugin.
 
-`Orders > Export > Check-in list (CSV) for NETWAYS`.
+`Orders > Export > Check-in list for NETWAYS`.
 
 ## Documentation
 
