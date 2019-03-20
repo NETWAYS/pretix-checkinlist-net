@@ -184,8 +184,8 @@ class CheckInListMixin(BaseExporter):
 
 class CSVCheckinListNet(CheckInListMixin, ListExporter):
     name = "overview"
-    identifier = 'checkinlistcsvnet'
-    verbose_name = ugettext_lazy('Check-in list (CSV) for NETWAYS')
+    identifier = 'checkinlistnet'
+    verbose_name = ugettext_lazy('Check-in list for NETWAYS')
 
     @property
     def additional_form_fields(self):
