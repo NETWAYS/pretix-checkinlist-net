@@ -64,8 +64,10 @@ Raphael Michel for Pretix and the initial checkin list export code, which is ado
 
 # License
 
-Copyright 2018 NETWAYS GmbH <support@netways.de>
-Copyright 2018 Raphael Michel <mail@raphaelmichel.de>
+* Copyright 2018 NETWAYS GmbH <support@netways.de>
+* Copyright 2018 Raphael Michel <mail@raphaelmichel.de>
+
+Authors: Michael Friedrich, Raphael Michael
 
 The code in this repository is published under the terms of the Apache License.
 See the LICENSE file for the complete license text.
