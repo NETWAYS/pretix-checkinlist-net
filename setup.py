@@ -23,7 +23,7 @@ setup(
     license = 'Apache Software License',
 
     # pretix already depends on checkin related packages
-    install_requires = [],
+    install_requires = [ "packaging" ],
     packages = find_packages(exclude=['tests', 'tests.*']),
     include_package_data = True,
     entry_points = """
