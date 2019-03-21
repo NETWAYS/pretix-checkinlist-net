@@ -36,16 +36,8 @@ Attendee name parts are available with >= v2.0.0.
 The plugin is available on [Pypi](https://pypi.org/project/pretix-checkinlist-net/)
 and can be installed using pip.
 
-### pip
-
 ```
 pip install pretix-checkinlist-net
-```
-
-### Manual installation
-
-```
-pip3 install pretix-checkinlist-net
 ```
 
 ## Configuration
