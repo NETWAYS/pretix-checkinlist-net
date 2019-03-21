@@ -1,15 +1,40 @@
 # Pretix Checkin List Export Plugin for NETWAYS
 
 This plugin adds a custom checkin list export for NETWAYS hosted events and conferences
-using <a href="https://pretix.eu/about/en/"><img src="https://github.com/NETWAYS/pretix-invoice-net/blob/master/res/logo.png" height="25"></a>.
+into Pretix.
+
+ <a href="https://pretix.eu/about/en/"><img src="https://github.com/NETWAYS/pretix-invoice-net/blob/master/res/logo.png" height="25"></a>
+
+The default checkin list renders a row for each order, including the
+attendee name. The main requirement for this plugin is to generate
+the following data:
+
+* One row per attendee
+* Add sub events and orders as additional columns (e.g. optional hotel rooms, additional workshops, hackathons, etc.)
+* Add answered questions/twitter handle
+
+![Order Export](doc/images/pretix_checkinlist_net_order_export.png)
+
+Supported output formats:
+
+* Excel (.xlsx)
+* CSV (with commas)
+* CSV (Excel-style)
+* CSV (with semicolons)
+
+![Excel Export](doc/images/pretix_checkinlist_net_order_export_excel_icb.png)
+
+Attendee name parts are available with >= v2.0.0.
 
 ## Requirements
 
-* Pretix >= 2.4.0
+* Pretix >= 2.5.0
+* Python >= 3.5.0 < 3.7.0
 
 ## Installation
 
-https://pypi.python.org/pypi/pretix-checkinlist-net
+The plugin is available on [Pypi](https://pypi.org/project/pretix-checkinlist-net/)
+and can be installed using pip.
 
 ### pip
 
@@ -20,8 +45,7 @@ pip install pretix-checkinlist-net
 ### Manual installation
 
 ```
-cp -rv pretix-checkinlist-net/* /usr/src/pretix-checkinlist-net/
-pip3 install /usr/src/pretix-checkinlist-net/
+pip3 install pretix-checkinlist-net
 ```
 
 ## Configuration
@@ -40,14 +64,7 @@ Checkin List Export is inspired by [upstream](https://github.com/pretix/pretix/b
 
 ## Development setup
 
-1. Make sure that you have a working [pretix development setup](https://docs.pretix.eu/en/latest/development/setup.html).
-2. Clone this repository, eg to ``local/pretix-checkinlist-net``.
-3. Activate the virtual environment you use for pretix development.
-4. Execute ``python setup.py develop`` within this directory to register this application with pretix's plugin registry.
-5. Execute ``make`` within this directory to compile translations.
-6. Restart your local pretix server. You can now use the plugin from this repository for your events by enabling it in
-   the 'plugins' tab in the settings.
-
+Please follow the instructions in the [development docs](doc/50-development.md).
 
 # Thanks
 
