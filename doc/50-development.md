@@ -23,13 +23,17 @@ pip3 install -r requirements.txt -r requirements/dev.txt
 ### Local server
 
 ```
-cd $HOME/coding/testing/pretix/pretix/src
+cd $HOME/coding/testing/pretix/pretix
 
-python manage.py collectstatic --noinput
-python manage.py makemigrations
-python manage.py migrate
-python make_testdata.py
-python manage.py runserver
+source env/bin/activate
+
+cd src
+
+python3 manage.py collectstatic --noinput
+python3 manage.py makemigrations
+python3 manage.py migrate
+python3 make_testdata.py
+python3 manage.py runserver
 ```
 
 http://127.0.0.1:8000/control admin@localhost - admin
@@ -43,45 +47,77 @@ cd $HOME/coding/netways/pretix/pretix-invoice-net
 ```
 
 ```
-python3 setup.py develop
+python3 setup.py install
 ```
 
 ## Plugin Release
 
+```
+VERSION=2.0.1
+```
+
 ### Create release
-
-
-```
-VERSION=0.0.3
-```
 
 ```
 sed -i "s/version = '.*'/version = '$VERSION'/g" setup.py
-sed -i "s/version = '.*'/version = '$VERSION'/g" pretix_checkinlist_net/__init__.py
 sed -i "s/archive\/.*'/archive\/v$VERSION.tar.gz'/g" setup.py
+ 
+vim */__init__.py
+ 
+     version = '...'
 
 git commit -av -m "Release v$VERSION"
+
+git tag -s -m "Version $VERSION" v$VERSION
+ 
+git push
+git push --tags
 ```
 
 
-```
-git tag -u D14A1F16 -m "Version $VERSION" v$VERSION
-```
+### PyPi Upload
+
 
 ```
 python3 setup.py sdist
 ```
 
-### PyPi Upload
-
 #### Test
 
 ```
-python setup.py sdist upload -r testpypi
+python3 -m twine upload dist/pretix-checkinlist-net-$VERSION.tar.gz --verbose -r testpypi
 ```
 
 #### Release
 
 ```
-python setup.py sdist upload -r pypi
+python3 -m twine upload dist/pretix-checkinlist-net-$VERSION.tar.gz --verbose
+```
+
+#### Requirements
+
+```
+pip3 install twine
+```
+
+```
+cat >$HOME/.pypirc <<EOF
+
+[distutils]
+index-servers =
+  pypi
+  pypitest
+
+[pypi]
+repository=https://upload.pypi.org/legacy/
+username=netways
+password=XXX
+
+[testpypi]
+repository=https://test.pypi.org/legacy/
+username=netways
+password=XXX
+EOF
+
+chmod 600 ~/.pypirc
 ```
