@@ -1,3 +1,5 @@
+[![GitHub Tag](https://img.shields.io/github/tag/NETWAYS/pretix-checkinlist-net.svg)](https://github.com/NETWAYS/pretix-checkinlist-net)
+
 # Pretix Checkin List Export Plugin for NETWAYS
 
 This plugin adds a custom checkin list export for NETWAYS hosted events and conferences
