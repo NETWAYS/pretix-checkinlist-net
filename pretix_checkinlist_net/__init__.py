@@ -9,7 +9,7 @@ from pretix import __version__ as appVersion
 class PluginApp(AppConfig):
     name = 'pretix_checkinlist_net'
     verbose_name = 'Pretix Checkin List Exporter for NETWAYS'
-    required_core_version = '2.4.0'
+    required_core_version = '2.5.0'
 
     class PretixPluginMeta:
         name = ugettext_lazy('Pretix Checkin List Exporter for NETWAYS')
