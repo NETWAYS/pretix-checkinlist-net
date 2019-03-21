@@ -50,9 +50,10 @@ Navigate into the admin control panel and choose your event.
 
 ## Documentation
 
-https://docs.pretix.eu/en/latest/development/api/plugins.html
+This plugin was created by following the [Plugin API development docs](https://docs.pretix.eu/en/latest/development/api/plugins.html) and is inspired by [upstream](https://github.com/pretix/pretix/blob/master/src/pretix/plugins/checkinlists/exporters.py).
 
-Checkin List Export is inspired by [upstream](https://github.com/pretix/pretix/blob/master/src/pretix/plugins/checkinlists/exporters.py).
+2.0.0+ uses the generic ListExporter class from upstream
+to provide the same output formats as Pretix core.
 
 ## Development setup
 
@@ -60,14 +61,15 @@ Please follow the instructions in the [development docs](doc/50-development.md).
 
 # Thanks
 
-Raphael Michel for Pretix and the initial checkin list export code, which is adopted in this custom renderer plugin.
+Raphael Michel for Pretix and the initial checkin list export code
+which is adopted in this custom plugin.
 
 # License
 
 * Copyright 2018 NETWAYS GmbH <support@netways.de>
 * Copyright 2018 Raphael Michel <mail@raphaelmichel.de>
 
-Authors: Michael Friedrich, Raphael Michael
+Authors: Michael Friedrich, Raphael Michel
 
 The code in this repository is published under the terms of the Apache License.
 See the LICENSE file for the complete license text.
