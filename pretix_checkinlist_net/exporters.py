@@ -1,33 +1,20 @@
-# Debug logging
 import logging
 
-# Pretix requirements
 from collections import OrderedDict
-
-import dateutil.parser
 from django import forms
-from django.conf import settings
 from django.db.models import Max, OuterRef, Subquery
 from django.db.models.functions import Coalesce
 from django.urls import reverse
-from django.utils.formats import date_format
-from django.utils.timezone import is_aware, make_aware
 from django.utils.translation import pgettext, ugettext as _, ugettext_lazy
-from jsonfallback.functions import JSONExtract
-from pytz import UTC
-from reportlab.lib.units import mm
-from reportlab.platypus import Flowable, Paragraph, Spacer, Table, TableStyle
-
 from pretix.base.exporter import BaseExporter, ListExporter
 from pretix.base.models import (
     Checkin, InvoiceAddress, Order, OrderPosition, Question,
 )
 from pretix.base.settings import PERSON_NAME_SCHEMES
-from pretix.base.templatetags.money import money_filter
 from pretix.control.forms.widgets import Select2
-from pretix.plugins.reports.exporters import ReportlabExportMixin
 
 logger = logging.getLogger(__name__)
+
 
 class CheckInListMixin(BaseExporter):
     @property
@@ -94,7 +81,8 @@ class CheckInListMixin(BaseExporter):
         if cl.subevent:
             qs = qs.filter(subevent=cl.subevent)
 
-        # NET: Always sort by name; attribute change to `_cached` with 2.1.0: https://github.com/pretix/pretix/issues/978
+        # NET: Always sort by name; attribute change to `_cached`
+        # with 2.1.0: https://github.com/pretix/pretix/issues/978
         qs = qs.order_by(Coalesce('attendee_name_cached', 'addon_to__attendee_name_cached'))
 
         # NET: Always include paid/non-paid
@@ -116,7 +104,7 @@ class CheckInListMixin(BaseExporter):
 
             order_code = op.order.code
             attendee = op.attendee_name or (op.addon_to.attendee_name if op.addon_to else '')
-            product = str(op.item.name) + (" – " + str(op.variation.value) if op.variation else "")
+            product = str(op.item.name) + ((' - ' + str(op.variation.value)) if op.variation else '')
             paid = _('Yes') if op.order.status == Order.STATUS_PAID else _('No')
             email = op.attendee_email or (op.addon_to.attendee_email if op.addon_to else '')
 
@@ -131,13 +119,15 @@ class CheckInListMixin(BaseExporter):
 
             new_row['order_code'] = order_code
 
-			# Attendee name parts
+            # Attendee name parts
             name_scheme = PERSON_NAME_SCHEMES[self.event.settings.name_scheme]
 
             if len(name_scheme['fields']) > 1:
                 attendee_name_parts = []
                 for k, label, w in name_scheme['fields']:
-                    attendee_name_parts.append((op.attendee_name_parts or (op.addon_to.attendee_name_parts if op.addon_to else {}) or ia.name_parts).get(k, ''))
+                    attendee_name_parts.append((op.attendee_name_parts
+                                                or (op.addon_to.attendee_name_parts
+                                                    if op.addon_to else {}) or ia.name_parts).get(k, ''))
 
                 new_row['attendee_name_parts'] = attendee_name_parts
 
@@ -146,7 +136,7 @@ class CheckInListMixin(BaseExporter):
                 new_row['products'] = {}
 
             # Store the product
-            #new_row['products'][product] = paid
+            # new_row['products'][product] = paid
             new_row['products'][product] = "yes"
 
             # Collect questions
@@ -158,9 +148,10 @@ class CheckInListMixin(BaseExporter):
                 acache[answer.question_id] = str(answer)
 
             for question in questions:
-                question_str = str(question.question) # cast from LazyI18nString
+                question_str = str(question.question)  # cast from LazyI18nString
 
-                # We are grouping ticket + addons here, and if not all three of them answer the question, just take the first one which provides one.
+                # We are grouping ticket + addons here, and if not all three of them answer the question, just
+                # take the first one which provides one.
                 if question_str in new_row['questions'] and new_row['questions'][question_str] != '':
                     continue
 
@@ -170,17 +161,18 @@ class CheckInListMixin(BaseExporter):
 
                 new_row['questions'][question_str] = acache.get(question.pk, '')
 
-            #logger.error(new_row)
+            # logger.error(new_row)
 
             # Pass back to collection
             coll[attendee] = new_row
 
-            #logger.error(coll)
+            # logger.error(coll)
 
             # for loop end
 
         # return result set
         return coll, collected_product_columns, collected_question_columns
+
 
 class CSVCheckinListNet(CheckInListMixin, ListExporter):
     name = "overview"
@@ -205,7 +197,7 @@ class CSVCheckinListNet(CheckInListMixin, ListExporter):
         coll, collected_product_columns, collected_question_columns = self._get_dataset(qs, questions)
 
         # Start building the output
-        columns = [ 'Order name', 'Attendee name' ]
+        columns = ['Order name', 'Attendee name']
 
         # Add support for Attendee name parts
         name_scheme = PERSON_NAME_SCHEMES[self.event.settings.name_scheme]
@@ -220,11 +212,9 @@ class CSVCheckinListNet(CheckInListMixin, ListExporter):
 
         # Body
         for attendee, data in coll.items():
-            row = []
-            row.append(data['order_code'])
-            row.append(attendee)
+            row = [data['order_code'], attendee]
 
-			# Attendee name parts
+            # Attendee name parts
             if len(name_scheme['fields']) > 1:
                 for n in data['attendee_name_parts']:
                     row.append(n)
@@ -234,18 +224,18 @@ class CSVCheckinListNet(CheckInListMixin, ListExporter):
                 if c in data['products']:
                     row.append(data['products'][c])
                 else:
-                    row.append('') # empty value
+                    row.append('')  # empty value
 
-            #logger.error(row['questions'])
+            # logger.error(row['questions'])
 
             # Questions as columns
             for q in collected_question_columns:
                 if q in data['questions']:
                     row.append(data['questions'][q])
                 else:
-                    row.append('') # empty value
+                    row.append('')  # empty value
 
-            #logger.error(row)
+            # logger.error(row)
 
             # Write the row via ListExporter class
             yield row
