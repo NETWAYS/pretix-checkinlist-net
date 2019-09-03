@@ -131,6 +131,22 @@ class CheckInListMixin(BaseExporter):
 
                 new_row['attendee_name_parts'] = attendee_name_parts
 
+            new_row['company'] = ia.company
+            new_row['street'] = ia.street
+            new_row['zipcode'] = ia.zipcode
+            new_row['city'] = ia.city
+            new_row['country'] = ia.country.name
+
+            if not email:
+                new_row['email'] = op.order.email
+            else:
+                new_row['email'] = email
+
+            if op.voucher:
+                new_row['voucher'] = op.voucher.code
+            else:
+                new_row['voucher'] = ''
+
             # Collect products
             if 'products' not in new_row:
                 new_row['products'] = {}
@@ -197,7 +213,7 @@ class CSVCheckinListNet(CheckInListMixin, ListExporter):
         coll, collected_product_columns, collected_question_columns = self._get_dataset(qs, questions)
 
         # Start building the output
-        columns = ['Order name', 'Attendee name']
+        columns = ['Order name', 'Attendee name', 'Company', 'Street', 'Zipcode', 'City', 'Country', 'Email', 'Voucher']
 
         # Add support for Attendee name parts
         name_scheme = PERSON_NAME_SCHEMES[self.event.settings.name_scheme]
@@ -212,7 +228,11 @@ class CSVCheckinListNet(CheckInListMixin, ListExporter):
 
         # Body
         for attendee, data in coll.items():
-            row = [data['order_code'], attendee]
+            # , data['company'], data['street'], data['zipcode'], data['city'],
+            # data['country'], data['email'], data['voucher']
+            row = [data['order_code'], attendee,
+                   data['company'],  data['street'], data['zipcode'], data['city'], data['country'],
+                   data['email'], data['voucher']]
 
             # Attendee name parts
             if len(name_scheme['fields']) > 1:
