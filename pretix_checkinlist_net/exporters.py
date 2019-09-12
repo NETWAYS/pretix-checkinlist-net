@@ -144,8 +144,6 @@ class CheckInListMixin(BaseExporter):
 
             if op.voucher:
                 new_row['voucher'] = op.voucher.code
-            else:
-                new_row['voucher'] = ''
 
             # Collect products
             if 'products' not in new_row:
@@ -232,7 +230,12 @@ class CSVCheckinListNet(CheckInListMixin, ListExporter):
             # data['country'], data['email'], data['voucher']
             row = [data['order_code'], attendee,
                    data['company'],  data['street'], data['zipcode'], data['city'], data['country'],
-                   data['email'], data['voucher']]
+                   data['email']]
+
+            if 'voucher' in data:
+                row.append(data['voucher'])
+            else:
+                row.append('')
 
             # Attendee name parts
             if len(name_scheme['fields']) > 1:
