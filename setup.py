@@ -10,11 +10,11 @@ except ImportError:
 
 setup(
     name='pretix-checkinlist-net',
-    version='2.0.4',
+    version='2.0.5',
     description='Pretix checkin list exporter for NETWAYS',
     long_description=long_description,
     url='https://github.com/NETWAYS/pretix-checkinlist-net',
-    download_url='https://github.com/NETWAYS/pretix-invoice-net/archive/v2.0.4.tar.gz',
+    download_url='https://github.com/NETWAYS/pretix-invoice-net/archive/v2.0.5.tar.gz',
     keywords=['pretix', 'tickets', 'events', 'invoice', 'pdf'],
     author='NETWAYS GmbH',
     author_email='support@netways.de',
