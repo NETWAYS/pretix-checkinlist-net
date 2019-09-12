@@ -16,10 +16,10 @@ class PluginApp(AppConfig):
         author = 'NETWAYS GmbH'
         description = ugettext_lazy('This plugins allows to create custom event exports in Excel/CSV')
         visible = True
-        version = '2.0.2'
+        version = '2.0.3'
 
     def ready(self):
-        from . import signals  # NOQA
+        pass
 
     @cached_property
     def compatibility_warnings(self):
