@@ -19,7 +19,7 @@ class PluginApp(AppConfig):
         version = '2.0.4'
 
     def ready(self):
-        pass
+        from . import signals  # NOQA
 
     @cached_property
     def compatibility_warnings(self):
