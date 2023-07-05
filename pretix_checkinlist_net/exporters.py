@@ -5,7 +5,7 @@ from django import forms
 from django.db.models import Max, OuterRef, Subquery
 from django.db.models.functions import Coalesce
 from django.urls import reverse
-from django.utils.translation import pgettext, ugettext as _, ugettext_lazy
+from django.utils.translation import pgettext, gettext as _, gettext_lazy
 from pretix.base.exporter import BaseExporter, ListExporter
 from pretix.base.models import (
     Checkin, InvoiceAddress, Order, OrderPosition, Question,
@@ -191,7 +191,7 @@ class CheckInListMixin(BaseExporter):
 class CSVCheckinListNet(CheckInListMixin, ListExporter):
     name = "overview"
     identifier = 'checkinlistnet'
-    verbose_name = ugettext_lazy('Check-in list for NETWAYS')
+    verbose_name = gettext_lazy('Check-in list for NETWAYS')
 
     @property
     def additional_form_fields(self):

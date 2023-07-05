@@ -10,7 +10,7 @@ except ImportError:
 
 setup(
     name='pretix-checkinlist-net',
-    version='2.0.5',
+    version='2.0.6',
     description='Pretix checkin list exporter for NETWAYS',
     long_description=long_description,
     url='https://github.com/NETWAYS/pretix-checkinlist-net',
